@@ -1,75 +1,164 @@
 <?php
-$page_title = 'Crime Scene';
-require_once __DIR__ . '/includes/config.php';
+require_once 'game_state.php';
+require_detective();
 
-$case = get_active_case();
-if (!$case) {
+$caseId = (int)($_GET['case'] ?? 1);
+$cases  = get_cases();
+if (!isset($cases[$caseId])) {
     header('Location: cases.php');
     exit;
 }
 
-$message = '';
-$areaData = null;
+$message = null;
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-    $area_key = $_POST['area'] ?? '';
-    if (isset($case['crime_scene_areas'][$area_key])) {
-        $areaData = $case['crime_scene_areas'][$area_key];
-        add_evidence($areaData['clue']);
-        $message = 'You examined the ' . $areaData['title'] . ' and recorded a new clue.';
+    if (isset($_POST['save_notes'])) {
+        save_notes_for_case($caseId, $_POST['notes'] ?? '');
+    }
+    if (isset($_POST['search_zone'])) {
+        $zone = $_POST['search_zone'];
+        switch ($zone) {
+            case 'desk':
+                add_evidence($caseId, 'gala_invite', 'Gala invitation with suspicious time stamp');
+                set_case_progress($caseId, max(get_case_progress($caseId), 20));
+                $message = "You find a gala invitation with a time that doesn’t match the suspect’s story.";
+                break;
+            case 'window':
+                add_evidence($caseId, 'footprints', 'Smudged footprints near the open window');
+                set_case_progress($caseId, max(get_case_progress($caseId), 35));
+                $message = "Outside the window, faint footprints suggest a hurried escape.";
+                break;
+            case 'floor':
+                add_evidence($caseId, 'bracelet_clasp', 'Broken bracelet clasp under the table');
+                set_case_progress($caseId, max(get_case_progress($caseId), 50));
+                $message = "Under the table, you spot a broken bracelet clasp that matches the missing item.";
+                break;
+            default:
+                $message = "You look around, but find nothing new.";
+        }
     }
 }
-
-include __DIR__ . '/includes/header.php';
 ?>
-<div class="screen-header">
-    <h1>Crime Scene Board</h1>
-    <p class="tagline">Choose an area to inspect and log anything that stands out in your evidence bag.</p>
-</div>
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Crime Scene – <?php echo htmlspecialchars(get_case_title($caseId)); ?></title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+<?php render_header('Crime Scene'); ?>
 
-<section class="board-layout">
-    <article class="panel panel-main">
-        <h2>Scene Locations</h2>
-        <form method="post" class="form-card">
-            <div class="form-group">
-                <label for="area">Inspect area</label>
-                <select id="area" name="area">
-                    <?php foreach ($case['crime_scene_areas'] as $key => $area): ?>
-                        <option value="<?php echo htmlspecialchars($key); ?>">
-                            <?php echo htmlspecialchars($area['title']); ?>
-                        </option>
-                    <?php endforeach; ?>
-                </select>
-            </div>
-            <button type="submit" class="btn">Examine Location</button>
-        </form>
+<main class="main-layout with-sidebar">
+    <section class="crime-scene">
+        <a href="case_dashboard.php?case=<?php echo $caseId; ?>" class="back-button">← Back to Case Dashboard</a>
 
-        <?php if ($areaData): ?>
-            <div class="note-card">
-                <strong><?php echo htmlspecialchars($areaData['title']); ?></strong>
-                <p><?php echo htmlspecialchars($areaData['description']); ?></p>
-                <p><strong>Logged clue:</strong> <?php echo htmlspecialchars($areaData['clue']); ?></p>
-            </div>
-        <?php elseif ($message): ?>
-            <p><?php echo htmlspecialchars($message); ?></p>
-        <?php else: ?>
-            <p class="muted">Pick a location to see immediate notes from that area.</p>
+        <h2>CRIME SCENE: THE VANISHING BRACELET</h2>
+        <p class="section-intro">
+            The room is quiet, but it’s screaming with clues. Choose an area to search carefully.
+        </p>
+
+        <?php if (!empty($message)): ?>
+            <div class="flash-message"><?php echo htmlspecialchars($message); ?></div>
         <?php endif; ?>
-    </article>
 
-    <aside class="panel panel-side">
-        <h2>Evidence Bag</h2>
-        <div class="evidence-panel">
-            <?php if (empty($_SESSION['evidence_bag'])): ?>
-                <p class="muted">No evidence yet. Start with the main entry, roof, or security room.</p>
-            <?php else: ?>
-                <ul class="evidence-list">
-                    <?php foreach ($_SESSION['evidence_bag'] as $clue): ?>
-                        <li><?php echo htmlspecialchars($clue); ?></li>
-                    <?php endforeach; ?>
-                </ul>
-            <?php endif; ?>
+        <div class="crime-scene-layout">
+            <div class="scene-visual">
+                <p class="scene-title">Study crime scene for the Vanishing Bracelet case</p>
+
+                <div class="scene-image-wrapper" id="sceneWrapper">
+                    <img
+                        src="vanishing_bracelet_scene.png"
+                        alt="Crime scene study room"
+                        class="scene-image"
+                        id="crimeSceneImage"
+                    >
+                    <div class="magnifier-lens" id="magnifierLens"></div>
+                </div>
+
+                <p class="scene-caption-bottom">
+                    Hover over the scene – the magnifying glass highlights a zoomed detail, just like a real forensic lens.
+                </p>
+            </div>
+
+            <div class="scene-zones">
+                <h3>Search Zones</h3>
+                <form method="post" class="zone-grid">
+                    <button type="submit" name="search_zone" value="desk" class="zone-card">
+                        <h4>Search the Desk</h4>
+                        <p>Check drawers, papers, and personal items.</p>
+                    </button>
+                    <button type="submit" name="search_zone" value="window" class="zone-card">
+                        <h4>Check the Window</h4>
+                        <p>Look for signs of exit or entry.</p>
+                    </button>
+                    <button type="submit" name="search_zone" value="floor" class="zone-card">
+                        <h4>Inspect the Floor</h4>
+                        <p>Look beneath furniture for dropped evidence.</p>
+                    </button>
+                </form>
+                <p class="hint-text">
+                    Zones you’ve already searched may still hold hidden connections to suspects.
+                </p>
+            </div>
         </div>
-    </aside>
-</section>
-<?php include __DIR__ . '/includes/footer.php'; ?>
+    </section>
+
+    <?php render_evidence_bag_sidebar($caseId); ?>
+    <?php render_notebook($caseId); ?>
+</main>
+
+<script>
+// Magnifying glass logic
+(function() {
+    const wrapper = document.getElementById('sceneWrapper');
+    const img     = document.getElementById('crimeSceneImage');
+    const lens    = document.getElementById('magnifierLens');
+    if (!wrapper || !img || !lens) return;
+
+    const zoom = 2; // how much to zoom
+
+    function moveLens(e) {
+        const rect = wrapper.getBoundingClientRect();
+        const x = e.clientX - rect.left;
+        const y = e.clientY - rect.top;
+
+        const lensRadius = lens.offsetWidth / 2;
+
+        let lx = x;
+        let ly = y;
+        if (lx < lensRadius) lx = lensRadius;
+        if (ly < lensRadius) ly = lensRadius;
+        if (lx > rect.width - lensRadius) lx = rect.width - lensRadius;
+        if (ly > rect.height - lensRadius) ly = rect.height - lensRadius;
+
+        lens.style.left = lx + 'px';
+        lens.style.top  = ly + 'px';
+
+        const bgX = -((lx * zoom) - lensRadius);
+        const bgY = -((ly * zoom) - lensRadius);
+        lens.style.backgroundPosition = bgX + 'px ' + bgY + 'px';
+    }
+
+    function initLens() {
+        lens.style.backgroundImage = "url('vanishing_bracelet_scene.png')";
+        lens.style.backgroundRepeat = 'no-repeat';
+        lens.style.backgroundSize = (img.width * zoom) + 'px ' + (img.height * zoom) + 'px';
+    }
+
+    img.addEventListener('load', initLens);
+    if (img.complete) {
+        initLens();
+    }
+
+    wrapper.addEventListener('mousemove', moveLens);
+    wrapper.addEventListener('mouseenter', () => {
+        lens.style.opacity = '1';
+    });
+    wrapper.addEventListener('mouseleave', () => {
+        lens.style.opacity = '0';
+    });
+})();
+</script>
+</body>
+</html>
