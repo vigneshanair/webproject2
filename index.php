@@ -1,40 +1,56 @@
 <?php
-$page_title = 'Welcome – Cryptic Quest CSI';
-require_once __DIR__ . '/includes/config.php';
+// index.php
+require_once 'game_state.php';
 
+// Handle login form
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-    $name = trim($_POST['player_name'] ?? '');
+    $name  = trim($_POST['detective_name'] ?? '');
+    $badge = trim($_POST['badge_title'] ?? '');
+
     if ($name !== '') {
-        $_SESSION['player_name'] = $name;
-        header('Location: levels.php');
+        $_SESSION['detective']['name']  = $name;
+        $_SESSION['detective']['badge'] = $badge;
+        header('Location: cases.php');
         exit;
     }
 }
-
-include __DIR__ . '/includes/header.php';
 ?>
-
-<section class="card-grid">
-    <article class="card" style="grid-column: span 2;">
-        <div class="page-header">
-            <h1>Welcome, Detective</h1>
-            <p class="page-subtitle">
-                Step into a clean new investigation. Choose your codename to begin.
-            </p>
-        </div>
-
-        <form method="post" class="form-card">
-            <div class="form-group">
-                <label for="player_name">Detective Name</label>
-                <input type="text"
-                       id="player_name"
-                       name="player_name"
-                       value="<?php echo htmlspecialchars($_SESSION['player_name']); ?>"
-                       placeholder="Enter your detective name">
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Cryptic Quest – Login</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body class="login-body">
+    <div class="login-overlay"></div>
+    <div class="login-wrapper">
+        <div class="login-card">
+            <div class="login-left">
+                <h1 class="game-logo">Cryptic Quest</h1>
+                <p class="tagline">Metro Crime Analysis Unit – Secure Access</p>
+                <p class="login-description">
+                    Step into the role of a crime scene investigator. Take on interconnected cases, 
+                    track suspects, and build your legend.
+                </p>
             </div>
-            <button type="submit" class="btn">Assign Detective</button>
-        </form>
-    </article>
-</section>
+            <div class="login-right">
+                <h2>Detective Login</h2>
+                <form method="post">
+                    <label for="detective_name">Detective Name</label>
+                    <input type="text" id="detective_name" name="detective_name" required>
 
-<?php include __DIR__ . '/includes/footer.php'; ?>
+                    <label for="badge_title">Badge Title</label>
+                    <select id="badge_title" name="badge_title">
+                        <option value="Rookie Detective">Rookie Detective</option>
+                        <option value="Senior Investigator">Senior Investigator</option>
+                        <option value="Chief Inspector">Chief Inspector</option>
+                    </select>
+
+                    <button type="submit" class="btn-primary">Begin Investigation</button>
+                </form>
+            </div>
+        </div>
+    </div>
+</body>
+</html>
